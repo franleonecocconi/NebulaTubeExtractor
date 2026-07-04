@@ -18,34 +18,25 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
-            # Usamos un endpoint de scraping alternativo que salta el bloqueo de bot
-            api_url = f"https://api.cobalt.tools/api/json"
-            
-            # Configuramos la peticion con los datos del video que queremos
-            data = json.dumps({
-                "url": f"https://www.youtube.com/watch?v={video_id}",
-                "videoQuality": "360", # Calidad baja e ideal para el ExoPlayer de tu reloj
-                "downloadMode": "video"
-            }).encode('utf-8')
+            # Usamos una de las instancias oficiales y mas estables de Invidious
+            api_url = f"https://invidious.perennialte.ch/api/v1/videos/{video_id}"
             
             req = urllib.request.Request(
                 api_url, 
-                data=data, 
-                headers={
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                method='POST'
+                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
             )
             
             with urllib.request.urlopen(req) as response:
                 res_data = json.loads(response.read().decode('utf-8'))
                 
-                # Cobalt nos devuelve la URL directa en el campo 'url'
-                stream_url = res_data.get('url')
+                # Buscamos en la lista de formatos los streams de video que vienen listos con audio
+                format_streams = res_data.get('formatStreams', [])
                 
-                if not stream_url:
-                    raise Exception("No se pudo obtener la URL directa del json de respuesta")
+                if not format_streams:
+                    raise Exception("No se encontraron streams directos disponibles")
+                
+                # Agarramos el primer stream que suele ser el de calidad justa (360p o similar) ideal para el reloj
+                stream_url = format_streams[0].get('url')
 
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
