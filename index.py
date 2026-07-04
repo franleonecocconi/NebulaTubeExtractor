@@ -1,7 +1,7 @@
 from http.server import BaseHTTPRequestHandler
 import urllib.parse
 import json
-from pytube import YouTube
+import urllib.request
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -18,26 +18,40 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
-            # Conectamos con YouTube usando el ID directo
-            yt = YouTube(f"https://www.youtube.com/watch?v={video_id}")
+            # Usamos un endpoint de scraping alternativo que salta el bloqueo de bot
+            api_url = f"https://api.cobalt.tools/api/json"
             
-            # Buscamos el stream progresivo (que tiene video y audio juntos en el mismo archivo)
-            # Elegimos la resolucion de 360p o 720p que son las que ExoPlayer reproduce al toque
-            stream = yt.streams.filter(progressive=True, file_extension='mp4').first()
+            # Configuramos la peticion con los datos del video que queremos
+            data = json.dumps({
+                "url": f"https://www.youtube.com/watch?v={video_id}",
+                "videoQuality": "360", # Calidad baja e ideal para el ExoPlayer de tu reloj
+                "downloadMode": "video"
+            }).encode('utf-8')
+            
+            req = urllib.request.Request(
+                api_url, 
+                data=data, 
+                headers={
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                method='POST'
+            )
+            
+            with urllib.request.urlopen(req) as response:
+                res_data = json.loads(response.read().decode('utf-8'))
+                
+                # Cobalt nos devuelve la URL directa en el campo 'url'
+                stream_url = res_data.get('url')
+                
+                if not stream_url:
+                    raise Exception("No se pudo obtener la URL directa del json de respuesta")
 
-            if not stream:
-                self.send_response(404)
+                self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
-                self.wfile.write(json.dumps({"success": False, "error": "No se encontro stream progresivo"}).encode())
-                return
-
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(json.dumps({"success": True, "url": stream.url}).encode())
+                self.wfile.write(json.dumps({"success": True, "url": stream_url}).encode())
 
         except Exception as e:
             self.send_response(500)
