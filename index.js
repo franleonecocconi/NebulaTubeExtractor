@@ -1,6 +1,6 @@
-const http = require('http');
-const url = require('url');
-const { Innertube, UniversalCache } = require('youtubei.js');
+import http from 'http';
+import url from 'url';
+import { Innertube, UniversalCache } from 'youtubei.js';
 
 const PORT = process.env.PORT || 3000;
 
