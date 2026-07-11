@@ -2,5 +2,5 @@
 echo "Subiendo codigo a Github..."
 git add .
 git commit -m "GitHub Actions Script"
-git push origin main
+git push origin main --force
 echo "Codigo subido a GitHub exitosamente!"
