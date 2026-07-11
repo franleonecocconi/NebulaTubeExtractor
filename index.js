@@ -10,7 +10,9 @@ async function getStreamUrl(videoId) {
     if (!youtube) {
         youtube = await Innertube.create({ 
             client_type: 'WEB',
-            cache: new UniversalCache(false) 
+            lang: 'es', 
+            location: 'AR',
+            cache: new UniversalCache(false)
         });
     }
     
