@@ -1,19 +1,21 @@
 import http from 'http';
-import url from 'url';
 import { Innertube, UniversalCache } from 'youtubei.js';
 
 const PORT = process.env.PORT || 3000;
 
 let youtube;
 
-async function getStreamUrl(videoId) {
+async function getStreamUrl(videoId, lang, country) {
     if (!youtube) {
         youtube = await Innertube.create({ 
             client_type: 'WEB',
-            lang: 'es', 
-            location: 'AR',
-            cache: new UniversalCache(false)
+            lang: lang,
+            location: country,
+            cache: new UniversalCache(false) 
         });
+    } else {
+        if (lang) await youtube.session.setLang(lang);
+        if (country) await youtube.session.setLocation(country);
     }
     
     const videoInfo = await youtube.getInfo(videoId);
@@ -37,11 +39,21 @@ async function getStreamUrl(videoId) {
 const server = http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    const parsedUrl = url.parse(req.url, true);
+    if (req.method === 'OPTIONS') {
+        res.statusCode = 200;
+        return res.end();
+    }
+
+    const baseURL = `http://${req.headers.host || 'localhost'}`;
+    const parsedUrl = new URL(req.url, baseURL);
     
-    if (parsedUrl.pathname === '/api/streams' && req.method === 'GET') {
-        const { videoId } = parsedUrl.query;
+    if (parsedUrl.pathname.includes('/api/streams') && req.method === 'GET') {
+        const videoId = parsedUrl.searchParams.get('videoId');
+        const lang = parsedUrl.searchParams.get('lang');
+        const country = parsedUrl.searchParams.get('country');
 
         if (!videoId) {
             res.statusCode = 400;
@@ -49,7 +61,7 @@ const server = http.createServer(async (req, res) => {
         }
 
         try {
-            const streamUrl = await getStreamUrl(videoId);
+            const streamUrl = await getStreamUrl(videoId, lang, country);
 
             if (!streamUrl) {
                 res.statusCode = 404;
@@ -65,7 +77,7 @@ const server = http.createServer(async (req, res) => {
         }
     } else {
         res.statusCode = 404;
-        res.end(JSON.stringify({ error: "Invalid route" }));
+        res.end(JSON.stringify({ error: "Route not found. Use /api/streams?videoId=YOUR_ID" }));
     }
 });
 
